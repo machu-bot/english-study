@@ -1,0 +1,137 @@
+---
+import Layout from '../layouts/Layout.astro';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Layout title="Dashboard" active="dashboard">
+  <h1 class="hero">Today<span class="dot">.</span></h1>
+  <p class="muted" style="margin-bottom: 24px;">
+    매일 5개 task — 모두 체크하면 streak +1.
+  </p>
+
+  <section class="hero-block">
+    <div>
+      <div class="label">CURRENT STREAK</div>
+      <div style="font-family: var(--font-hero); font-size: 56px; line-height: 1; color: var(--accent); margin-top: 6px;">
+        <span id="streak-num">0</span><span class="unit">DAYS</span>
+      </div>
+      <div class="muted" style="margin-top: 8px;">
+        진행률 <span id="progress-text">0/5</span>
+      </div>
+    </div>
+    <div class="streak">
+      <div class="label">SEGMENTS</div>
+      <div class="segments" id="segments">
+        {Array.from({ length: 16 }).map((_, i) => <div class="seg" data-idx={i}></div>)}
+      </div>
+      <div class="dim" style="margin-top: 6px;">16 blocks · 2px gap</div>
+    </div>
+  </section>
+
+  <h2>DAILY TASKS</h2>
+  <div id="tasks" class="card"></div>
+
+  <div class="notice">
+    <strong>Tip.</strong> byoungd/English-level-up-tips의 핵심 원칙 — 입력(input) → 재인식(re-encounter) → 능동 사용(productive use).
+    Task를 대충 체크하지 말고, 실제로 영어로 한 문장이라도 쓰고 체크하세요.
+  </div>
+
+  <h2 style="margin-top: 32px;">QUICK LOG</h2>
+  <p class="muted" style="margin-bottom: 12px;">각 영역 페이지에서 자세한 기록을 남길 수 있어요.</p>
+  <div class="card-row">
+    <a class="card" href={`${base}/vocabulary`} style="text-decoration: none;">
+      <div class="label">VOCABULARY</div>
+      <div style="font-family: var(--font-hero); font-size: 26px; margin: 6px 0;" id="vocab-count">0</div>
+      <div class="dim">단어 카드 수</div>
+    </a>
+    <a class="card" href={`${base}/listening`} style="text-decoration: none;">
+      <div class="label">LISTENING</div>
+      <div style="font-family: var(--font-hero); font-size: 26px; margin: 6px 0;" id="listen-count">0</div>
+      <div class="dim">세션 로그 수</div>
+    </a>
+    <a class="card" href={`${base}/reading`} style="text-decoration: none;">
+      <div class="label">READING</div>
+      <div style="font-family: var(--font-hero); font-size: 26px; margin: 6px 0;" id="read-count">0</div>
+      <div class="dim">아티클 메모 수</div>
+    </a>
+    <a class="card" href={`${base}/speaking`} style="text-decoration: none;">
+      <div class="label">SPEAKING</div>
+      <div style="font-family: var(--font-hero); font-size: 26px; margin: 6px 0;" id="speak-count">0</div>
+      <div class="dim">연습 로그 수</div>
+    </a>
+    <a class="card" href={`${base}/writing`} style="text-decoration: none;">
+      <div class="label">WRITING</div>
+      <div style="font-family: var(--font-hero); font-size: 26px; margin: 6px 0;" id="write-count">0</div>
+      <div class="dim">일기/에세이 수</div>
+    </a>
+  </div>
+</Layout>
+
+<script>
+  import { seedIfEmpty, getTasks, toggleTask, getStreak, AREA_LABEL, getVocab, getLogs } from '../lib/store';
+
+  seedIfEmpty();
+
+  function renderTasks() {
+    const tasks = getTasks();
+    const el = document.getElementById('tasks');
+    if (!el) return;
+    el.innerHTML = '';
+    if (tasks.length === 0) {
+      el.innerHTML = '<div class="muted">오늘 task가 없어요. <a href="' + base + '/vocabulary">Vocabulary</a>에서 시작하세요.</div>';
+      return;
+    }
+    tasks.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'task' + (t.done ? ' done' : '');
+      row.innerHTML = `
+        <div style="display:flex; gap:14px; align-items:center;">
+          <input type="checkbox" ${t.done ? 'checked' : ''} />
+          <span class="label">${AREA_LABEL[t.area]}</span>
+          <span>${t.text}</span>
+        </div>
+        <span class="when">${t.date}</span>
+        <span></span>
+      `;
+      const cb = row.querySelector('input')!;
+      cb.addEventListener('change', () => {
+        toggleTask(t.id);
+        renderTasks();
+        renderStreak();
+      });
+      el.appendChild(row);
+    });
+    const done = tasks.filter(t => t.done).length;
+    const txt = document.getElementById('progress-text');
+    if (txt) txt.textContent = `${done}/${tasks.length}`;
+  }
+
+  function renderStreak() {
+    const n = getStreak();
+    const el = document.getElementById('streak-num');
+    if (el) el.textContent = String(n);
+    const tasks = getTasks();
+    const done = tasks.filter(t => t.done).length;
+    const pct = tasks.length ? done / tasks.length : 0;
+    document.querySelectorAll<HTMLElement>('#segments .seg').forEach((s, i) => {
+      const on = i / 16 < pct;
+      s.classList.toggle('on', on);
+    });
+  }
+
+  function renderCounts() {
+    const vocab = getVocab().length;
+    const listen = getLogs('listening').length;
+    const read = getLogs('reading').length;
+    const speak = getLogs('speaking').length;
+    const write = getLogs('writing').length;
+    document.getElementById('vocab-count')!.textContent = String(vocab);
+    document.getElementById('listen-count')!.textContent = String(listen);
+    document.getElementById('read-count')!.textContent = String(read);
+    document.getElementById('speak-count')!.textContent = String(speak);
+    document.getElementById('write-count')!.textContent = String(write);
+  }
+
+  renderTasks();
+  renderStreak();
+  renderCounts();
+</script>

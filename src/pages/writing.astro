@@ -1,0 +1,64 @@
+---
+import Layout from '../layouts/Layout.astro';
+const counts = { writing: 0 };
+---
+<Layout title="Writing" active="writing" counts={counts}>
+  <h1 class="hero">Writing<span class="dot">.</span></h1>
+  <p class="muted" style="margin-bottom: 24px;">
+    짧아도 매일. 3문장 일기 → 1단락 → 1에세이. AI 첨삭 없이 직접 검수하는 습관이 먼저.
+  </p>
+
+  <div class="card" style="margin-bottom: 22px;">
+    <div class="label">ADD ENTRY</div>
+    <input id="w-title" type="text" placeholder="title (e.g. Today I learned — present perfect)" style="margin-top: 10px;" />
+    <textarea id="w-ref" placeholder="본문 — 영어로 직접 작성. 짧아도 OK." style="margin-top:10px; min-height: 180px;"></textarea>
+    <div style="margin-top: 12px;">
+      <button class="btn primary" id="w-add" type="button">SAVE ENTRY</button>
+    </div>
+  </div>
+
+  <h2>ENTRIES</h2>
+  <div class="card" id="w-list"></div>
+</Layout>
+
+<script>
+  import { getLogs, addLog, deleteLog } from '../lib/store';
+
+  function render() {
+    const list = getLogs('writing');
+    const el = document.getElementById('w-list');
+    if (!el) return;
+    if (list.length === 0) { el.innerHTML = '<div class="muted">아직 일기가 없어요.</div>'; return; }
+    el.innerHTML = '<div class="list">' + list.map(l => `
+      <div class="list-row" data-id="${l.id}" style="grid-template-columns: 110px 1fr auto;">
+        <span class="when">${new Date(l.createdAt).toLocaleString()}</span>
+        <div>
+          <div style="font-family: var(--font-hero); font-size: 16px;">${escapeHtml(l.title)}</div>
+          ${l.reflection ? `<div class="muted" style="margin-top: 8px; font-size: 13px; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(l.reflection)}</div>` : ''}
+        </div>
+        <button class="btn sm danger" data-act="del">DEL</button>
+      </div>
+    `).join('') + '</div>';
+    el.querySelectorAll<HTMLElement>('.list-row').forEach(row => {
+      const id = row.dataset.id!;
+      row.querySelector('[data-act="del"]')?.addEventListener('click', () => {
+        if (confirm('Delete?')) { deleteLog(id); render(); }
+      });
+    });
+  }
+  function escapeHtml(s: string) {
+    return s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] as string));
+  }
+
+  document.getElementById('w-add')?.addEventListener('click', () => {
+    const title = (document.getElementById('w-title') as HTMLInputElement).value.trim();
+    const body = (document.getElementById('w-ref') as HTMLTextAreaElement).value.trim();
+    if (!title || !body) { alert('title과 본문 모두 필요'); return; }
+    addLog({ area: 'writing', title, reflection: body });
+    (document.getElementById('w-title') as HTMLInputElement).value = '';
+    (document.getElementById('w-ref') as HTMLTextAreaElement).value = '';
+    render();
+  });
+
+  render();
+</script>

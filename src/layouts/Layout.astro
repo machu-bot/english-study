@@ -1,0 +1,56 @@
+---
+import '../styles/global.css';
+import { AREA_LABEL } from '../lib/store';
+
+interface Props {
+  title: string;
+  active?: 'dashboard' | 'assessment' | 'vocab' | 'listening' | 'reading' | 'speaking' | 'writing' | 'about';
+  counts?: Partial<Record<'vocab' | 'listening' | 'reading' | 'speaking' | 'writing', number>>;
+}
+
+const { title, active = 'dashboard', counts = {} } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const navItems: Array<{ key: NonNullable<Props['active']>; href: string; label: string; countKey?: keyof Props['counts'] }> = [
+  { key: 'dashboard',  href: `${base}/`,            label: 'Dashboard' },
+  { key: 'assessment', href: `${base}/assessment`,  label: 'Assessment' },
+  { key: 'vocab',      href: `${base}/vocabulary`,  label: 'Vocabulary', countKey: 'vocab' },
+  { key: 'listening',  href: `${base}/listening`,   label: 'Listening',  countKey: 'listening' },
+  { key: 'reading',    href: `${base}/reading`,     label: 'Reading',    countKey: 'reading' },
+  { key: 'speaking',   href: `${base}/speaking`,    label: 'Speaking',   countKey: 'speaking' },
+  { key: 'writing',    href: `${base}/writing`,     label: 'Writing',    countKey: 'writing' },
+  { key: 'about',      href: `${base}/about`,       label: 'About' },
+];
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="generator" content={Astro.generator} />
+  <title>{title} · english-study</title>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">English<span class="dot">.</span></div>
+      <div class="brand-sub">Level-up · Self-Hosted</div>
+      <nav class="nav">
+        {navItems.map(item => (
+          <a href={item.href} class={active === item.key ? 'active' : ''}>
+            <span>{item.label}</span>
+            {item.countKey !== undefined && (
+              <span class="count">{counts[item.countKey] ?? 0}</span>
+            )}
+          </a>
+        ))}
+      </nav>
+    </aside>
+    <main class="main">
+      <slot />
+      <div class="footer">
+        LOCAL ONLY · NO TRACKING · BYO BACKUP
+      </div>
+    </main>
+  </div>
+</body>
+</html>

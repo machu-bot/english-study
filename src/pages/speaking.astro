@@ -1,0 +1,74 @@
+---
+import Layout from '../layouts/Layout.astro';
+const counts = { speaking: 0 };
+---
+<Layout title="Speaking" active="speaking" counts={counts}>
+  <h1 class="hero">Speaking<span class="dot">.</span></h1>
+  <p class="muted" style="margin-bottom: 24px;">
+    쉐도잉, 혼잣말 영어 일기, 1분 스피치. 녹음은 폰으로 하고 여기엔 메모만.
+  </p>
+
+  <div class="card" style="margin-bottom: 22px;">
+    <div class="label">ADD PRACTICE</div>
+    <div style="display:grid; grid-template-columns: 2fr 1fr 120px; gap:10px; margin-top:10px;">
+      <input id="s-title" type="text" placeholder="title (e.g. Shadowing — TED Talk intro)" />
+      <input id="s-source" type="text" placeholder="source (optional)" />
+      <input id="s-dur" type="number" placeholder="minutes" min="1" />
+    </div>
+    <textarea id="s-ref" placeholder="메모 — 입 모양, 강세, 막히는 부분, 다음에 시도할 것" style="margin-top:10px;"></textarea>
+    <div style="margin-top: 12px;">
+      <button class="btn primary" id="s-add" type="button">ADD LOG</button>
+    </div>
+  </div>
+
+  <h2>SESSIONS</h2>
+  <div class="card" id="s-list"></div>
+</Layout>
+
+<script>
+  import { getLogs, addLog, deleteLog } from '../lib/store';
+
+  function render() {
+    const list = getLogs('speaking');
+    const el = document.getElementById('s-list');
+    if (!el) return;
+    if (list.length === 0) { el.innerHTML = '<div class="muted">아직 로그가 없어요.</div>'; return; }
+    el.innerHTML = '<div class="list">' + list.map(l => `
+      <div class="list-row" data-id="${l.id}" style="grid-template-columns: 110px 1fr auto auto;">
+        <span class="when">${new Date(l.createdAt).toLocaleString()}</span>
+        <div>
+          <div style="font-family: var(--font-hero); font-size: 16px;">${escapeHtml(l.title)}</div>
+          ${l.source ? `<div class="dim" style="font-size: 12px; margin-top: 2px;">${escapeHtml(l.source)}</div>` : ''}
+          ${l.reflection ? `<div class="muted" style="margin-top: 6px; font-size: 13px; white-space: pre-wrap;">${escapeHtml(l.reflection)}</div>` : ''}
+        </div>
+        <span class="tag">${l.duration ?? '—'} MIN</span>
+        <button class="btn sm danger" data-act="del">DEL</button>
+      </div>
+    `).join('') + '</div>';
+    el.querySelectorAll<HTMLElement>('.list-row').forEach(row => {
+      const id = row.dataset.id!;
+      row.querySelector('[data-act="del"]')?.addEventListener('click', () => {
+        if (confirm('Delete?')) { deleteLog(id); render(); }
+      });
+    });
+  }
+  function escapeHtml(s: string) {
+    return s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] as string));
+  }
+
+  document.getElementById('s-add')?.addEventListener('click', () => {
+    const title = (document.getElementById('s-title') as HTMLInputElement).value.trim();
+    const source = (document.getElementById('s-source') as HTMLInputElement).value.trim();
+    const dur = Number((document.getElementById('s-dur') as HTMLInputElement).value) || undefined;
+    const ref = (document.getElementById('s-ref') as HTMLTextAreaElement).value.trim();
+    if (!title) { alert('title required'); return; }
+    addLog({ area: 'speaking', title, source: source || undefined, duration: dur, reflection: ref || undefined });
+    (document.getElementById('s-title') as HTMLInputElement).value = '';
+    (document.getElementById('s-source') as HTMLInputElement).value = '';
+    (document.getElementById('s-dur') as HTMLInputElement).value = '';
+    (document.getElementById('s-ref') as HTMLTextAreaElement).value = '';
+    render();
+  });
+
+  render();
+</script>

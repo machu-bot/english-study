@@ -1,0 +1,115 @@
+---
+import Layout from '../layouts/Layout.astro';
+const counts = { vocab: 0 }; // client-side
+---
+<Layout title="Vocabulary" active="vocab" counts={counts}>
+  <h1 class="hero">Vocabulary<span class="dot">.</span></h1>
+  <p class="muted" style="margin-bottom: 24px;">
+    영영 정의 + 예문 + CEFR 레벨. 복습할 때마다 <code class="accent">reviews</code>가 올라갑니다.
+  </p>
+
+  <div class="card" style="margin-bottom: 22px;">
+    <div class="label">ADD WORD</div>
+    <div style="display:grid; grid-template-columns: 2fr 4fr; gap:10px; margin-top:10px;">
+      <input id="w-word" type="text" placeholder="word (e.g. candid)" />
+      <input id="w-level" type="text" placeholder="CEFR level — A1/A2/B1/B2/C1/C2 (optional)" style="max-width: 240px;" />
+    </div>
+    <textarea id="w-def" placeholder="영영 정의 (e.g. honest and open about what you think or feel)" style="margin-top:10px;"></textarea>
+    <textarea id="w-ex" placeholder="예문 (e.g. I appreciated her candid feedback on my essay.)" style="margin-top:10px; min-height: 60px;"></textarea>
+    <textarea id="w-note" placeholder="메모 (optional)" style="margin-top:10px; min-height: 50px;"></textarea>
+    <div style="margin-top: 12px;">
+      <button class="btn primary" id="w-add" type="button">ADD CARD</button>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:8px; align-items:center; margin-bottom: 12px;">
+    <span class="label">FILTER</span>
+    <button class="btn sm" data-filter="all" type="button">ALL</button>
+    <button class="btn sm" data-filter="A1" type="button">A1</button>
+    <button class="btn sm" data-filter="A2" type="button">A2</button>
+    <button class="btn sm" data-filter="B1" type="button">B1</button>
+    <button class="btn sm" data-filter="B2" type="button">B2</button>
+    <button class="btn sm" data-filter="C1" type="button">C1</button>
+    <button class="btn sm" data-filter="C2" type="button">C2</button>
+    <span class="dim" style="margin-left:auto; font-family: var(--font-mono); font-size: 11px;" id="vocab-count-text">0 cards</span>
+  </div>
+
+  <div class="card" id="vocab-list">
+    <div class="muted">아직 카드가 없어요. 첫 단어를 추가해보세요.</div>
+  </div>
+</Layout>
+
+<script>
+  import { getVocab, addVocab, deleteVocab, reviewVocab } from '../lib/store';
+
+  let currentFilter: string = 'all';
+
+  function render() {
+    const list = getVocab();
+    const filtered = currentFilter === 'all' ? list : list.filter(v => v.level === currentFilter);
+    const el = document.getElementById('vocab-list');
+    const counter = document.getElementById('vocab-count-text');
+    if (counter) counter.textContent = `${filtered.length} cards`;
+    if (!el) return;
+    if (filtered.length === 0) {
+      el.innerHTML = '<div class="muted">표시할 카드가 없어요.</div>';
+      return;
+    }
+    el.innerHTML = '<div class="list">' + filtered.map(v => `
+      <div class="list-row" data-id="${v.id}" style="grid-template-columns: 90px 1fr auto auto auto;">
+        <span class="label">${v.level ?? '—'}</span>
+        <div>
+          <div style="font-family: var(--font-hero); font-size: 18px; letter-spacing: -0.02em;">${escapeHtml(v.word)}</div>
+          <div class="dim" style="margin-top:4px;">${escapeHtml(v.definition)}</div>
+          <div class="muted" style="margin-top:6px; font-style: italic;">"${escapeHtml(v.example)}"</div>
+          ${v.notes ? `<div class="dim" style="margin-top:6px; font-size: 12px;">📝 ${escapeHtml(v.notes)}</div>` : ''}
+        </div>
+        <span class="when">×${v.reviews}</span>
+        <button class="btn sm" data-act="review">REVIEW</button>
+        <button class="btn sm danger" data-act="del">DEL</button>
+      </div>
+    `).join('') + '</div>';
+
+    el.querySelectorAll<HTMLElement>('.list-row').forEach(row => {
+      const id = row.dataset.id!;
+      row.querySelector('[data-act="review"]')?.addEventListener('click', () => {
+        reviewVocab(id); render();
+      });
+      row.querySelector('[data-act="del"]')?.addEventListener('click', () => {
+        if (confirm('Delete this card?')) { deleteVocab(id); render(); }
+      });
+    });
+  }
+
+  function escapeHtml(s: string) {
+    return s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] as string));
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentFilter = btn.dataset.filter!;
+      document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('primary'));
+      btn.classList.add('primary');
+      render();
+    });
+  });
+  document.querySelector('[data-filter="all"]')?.classList.add('primary');
+
+  document.getElementById('w-add')?.addEventListener('click', () => {
+    const word = (document.getElementById('w-word') as HTMLInputElement).value.trim();
+    const def  = (document.getElementById('w-def') as HTMLTextAreaElement).value.trim();
+    const ex   = (document.getElementById('w-ex') as HTMLTextAreaElement).value.trim();
+    const lvl  = (document.getElementById('w-level') as HTMLInputElement).value.trim() as any;
+    const note = (document.getElementById('w-note') as HTMLTextAreaElement).value.trim();
+    if (!word || !def || !ex) { alert('word / definition / example은 필수'); return; }
+    addVocab({ word, definition: def, example: ex, level: lvl || undefined, notes: note || undefined });
+    (document.getElementById('w-word') as HTMLInputElement).value = '';
+    (document.getElementById('w-def') as HTMLTextAreaElement).value = '';
+    (document.getElementById('w-ex') as HTMLTextAreaElement).value = '';
+    (document.getElementById('w-level') as HTMLInputElement).value = '';
+    (document.getElementById('w-note') as HTMLTextAreaElement).value = '';
+    render();
+  });
+
+  render();
+</script>

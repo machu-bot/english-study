@@ -1,0 +1,103 @@
+---
+import Layout from '../layouts/Layout.astro';
+const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
+const areas = [
+  { key: 'understanding', label: 'Understanding (overall)' },
+  { key: 'vocab',         label: 'Vocabulary' },
+  { key: 'listening',     label: 'Listening' },
+  { key: 'reading',       label: 'Reading' },
+  { key: 'speaking',      label: 'Speaking' },
+  { key: 'writing',       label: 'Writing' },
+] as const;
+const desc: Record<string, string> = {
+  A1: '기초', A2: '초급', B1: '중급', B2: '중상급', C1: '고급', C2: '숙달',
+};
+---
+<Layout title="Assessment" active="assessment">
+  <h1 class="hero">Assessment<span class="dot">.</span></h1>
+  <p class="muted" style="margin-bottom: 24px;">
+    CEFR 기준 셀프 체크. 솔직하게 — 과대평가하지 마세요. 거짓 레벨은 안 좋은 학습 계획을 만듭니다.
+  </p>
+
+  <div class="notice">
+    <strong>Tip.</strong> 가이드의 권장 — 각 영역을 따로 평가. "Overall"과 영역별 레벨이 다를 수 있어요. 예: 읽기 B2 / 말하기 A2.
+  </div>
+
+  <div class="card">
+    {areas.map(area => (
+      <div style="display:grid; grid-template-columns: 1fr 2fr; gap:18px; align-items:center; padding:14px 0; border-bottom:1px solid var(--border);">
+        <div>
+          <div class="label">{area.label.toUpperCase()}</div>
+          <div class="dim" style="font-size:12px; margin-top:4px;" id={`hint-${area.key}`}>선택 안 됨</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;" data-area={area.key}>
+          {levels.map(lv => (
+            <button class="btn sm" data-level={lv} type="button">{lv} <span style="color:var(--text-muted); margin-left:6px;">{desc[lv]}</span></button>
+          ))}
+        </div>
+      </div>
+    ))}
+    <div style="margin-top:18px; display:flex; gap:10px;">
+      <button class="btn primary" id="save-btn" type="button">SAVE</button>
+      <button class="btn danger" id="reset-btn" type="button">RESET</button>
+    </div>
+  </div>
+
+  <h2 style="margin-top: 32px;">CURRENT SNAPSHOT</h2>
+  <div class="card" id="snapshot"></div>
+</Layout>
+
+<script>
+  import { getAssessment, saveAssessment, CEFR_DESC } from '../lib/store';
+  const areas = ['understanding', 'vocab', 'listening', 'reading', 'speaking', 'writing'] as const;
+  const a = getAssessment();
+
+  areas.forEach(area => {
+    const container = document.querySelector(`[data-area="${area}"]`);
+    if (!container) return;
+    const current = a[area];
+    const hint = document.getElementById(`hint-${area}`);
+    if (current) {
+      const btn = container.querySelector(`[data-level="${current}"]`);
+      if (btn) btn.classList.add('primary');
+      if (hint) hint.textContent = `${current} — ${CEFR_DESC[current]}`;
+    }
+    container.querySelectorAll<HTMLButtonElement>('button[data-level]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        container.querySelectorAll('button[data-level]').forEach(b => b.classList.remove('primary'));
+        btn.classList.add('primary');
+        a[area] = btn.dataset.level as any;
+        if (hint) hint.textContent = `${btn.dataset.level} — ${CEFR_DESC[btn.dataset.level as keyof typeof CEFR_DESC]}`;
+      });
+    });
+  });
+
+  document.getElementById('save-btn')?.addEventListener('click', () => {
+    saveAssessment(a);
+    renderSnapshot();
+  });
+  document.getElementById('reset-btn')?.addEventListener('click', () => {
+    areas.forEach(area => { a[area] = null; });
+    saveAssessment(a);
+    location.reload();
+  });
+
+  function renderSnapshot() {
+    const fresh = getAssessment();
+    const el = document.getElementById('snapshot');
+    if (!el) return;
+    const filled = areas.filter(x => fresh[x] !== null);
+    if (filled.length === 0) {
+      el.innerHTML = '<div class="muted">아직 평가가 저장되지 않았어요.</div>';
+      return;
+    }
+    el.innerHTML = '<div class="list">' + filled.map(x => `
+      <div class="list-row">
+        <span class="label">${x.toUpperCase()}</span>
+        <span class="body">${CEFR_DESC[fresh[x] as string] ?? ''}</span>
+        <span class="when">${fresh[x]}</span>
+      </div>
+    `).join('') + '</div>';
+  }
+  renderSnapshot();
+</script>

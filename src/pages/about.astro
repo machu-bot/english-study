@@ -1,0 +1,102 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="About" active="about">
+  <h1 class="hero">About<span class="dot">.</span></h1>
+  <p class="muted" style="margin-bottom: 24px;">
+    byoungd/English-level-up-tips에서 영감을 받아 직접 만든 학습 트래커.
+  </p>
+
+  <div class="notice">
+    <strong>License.</strong> 본 사이트는 CC BY-NC 4.0 가이드의 <em>구조</em>만 차용했습니다.
+    가이드 본문/예문은 포함되어 있지 않으며, 모든 데이터는 본인 브라우저의 localStorage에만 저장됩니다.
+  </div>
+
+  <h2>원칙 (가이드에서 발췌)</h2>
+  <div class="list">
+    <div class="list-row">
+      <span class="label">INPUT</span>
+      <span class="body">읽기·듣기 같은 receptive 활동이 출력보다 먼저. 매일 조금씩이라도大量 input.</span>
+      <span></span>
+    </div>
+    <div class="list-row">
+      <span class="label">i + 1</span>
+      <span class="body">지금 수준보다 약간 위. 너무 쉬우면 지루하고, 너무 어려으면 좌절.</span>
+      <span></span>
+    </div>
+    <div class="list-row">
+      <span class="label">RE-ENCOUNTER</span>
+      <span class="body">새로 배운 단어/구조를 최소 7번 다른 맥락에서 재만남.</span>
+      <span></span>
+    </div>
+    <div class="list-row">
+      <span class="label">PRODUCTIVE</span>
+      <span class="body">input만으로는 부족. 직접 쓰고/말하며 능동적으로 사용.</span>
+      <span></span>
+    </div>
+    <div class="list-row">
+      <span class="label">CONSISTENCY</span>
+      <span class="body">양보다 매일. 하루 30분 × 365일이 일주일 5시간 × 52회보다 나음.</span>
+      <span></span>
+    </div>
+  </div>
+
+  <h2 style="margin-top: 32px;">DATA</h2>
+  <p class="muted">
+    모든 학습 기록은 이 브라우저의 <code>localStorage</code>에만 저장됩니다.
+    브라우저 캐시 삭제 시 데이터가 사라질 수 있으니, 중요한 단어장은 export/백업을 권장합니다.
+  </p>
+
+  <div class="card" style="margin-top: 14px;">
+    <div class="label">EXPORT / IMPORT</div>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="btn" id="export-btn" type="button">EXPORT JSON</button>
+      <button class="btn" id="import-btn" type="button">IMPORT JSON</button>
+      <button class="btn danger" id="clear-btn" type="button">CLEAR ALL</button>
+    </div>
+    <textarea id="import-area" placeholder="import 시 여기에 JSON 붙여넣기" style="margin-top:10px; min-height: 80px;"></textarea>
+  </div>
+
+  <h2 style="margin-top: 32px;">REFERENCE</h2>
+  <p class="muted">
+    원본 가이드: <a href="https://github.com/byoungd/English-level-up-tips" target="_blank">byoungd/English-level-up-tips</a><br/>
+    GitBook: <a href="https://babyyoung.gitbook.io/english-level-up-tips/" target="_blank">babyyoung.gitbook.io</a>
+  </p>
+</Layout>
+
+<script>
+  const KEYS = ['es.vocab.v1', 'es.log.v1', 'es.task.v1', 'es.asmt.v1', 'es.streak.v1', 'es.streak.last'];
+
+  document.getElementById('export-btn')?.addEventListener('click', () => {
+    const dump: Record<string, any> = {};
+    KEYS.forEach(k => { dump[k] = localStorage.getItem(k); });
+    const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `english-study-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('import-btn')?.addEventListener('click', () => {
+    const text = (document.getElementById('import-area') as HTMLTextAreaElement).value.trim();
+    if (!text) { alert('JSON을 붙여넣기 하세요'); return; }
+    try {
+      const data = JSON.parse(text);
+      KEYS.forEach(k => {
+        if (data[k] !== undefined) localStorage.setItem(k, data[k]);
+      });
+      alert('Import 완료 — 페이지 새로고침합니다.');
+      location.reload();
+    } catch (e) {
+      alert('JSON 형식 오류: ' + (e as Error).message);
+    }
+  });
+
+  document.getElementById('clear-btn')?.addEventListener('click', () => {
+    if (!confirm('정말 모든 데이터를 지울까요? 되돌릴 수 없습니다.')) return;
+    KEYS.forEach(k => localStorage.removeItem(k));
+    location.reload();
+  });
+</script>

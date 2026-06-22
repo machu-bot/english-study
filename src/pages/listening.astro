@@ -1,0 +1,90 @@
+---
+import Layout from '../layouts/Layout.astro';
+const counts = { listening: 0 };
+---
+<Layout title="Listening" active="listening" counts={counts}>
+  <h1 class="hero">Listening<span class="dot">.</span></h1>
+  <p class="muted" style="margin-bottom: 24px;">
+    팟캐스트, 영상, TED. 매 세션 1개씩 기록 — 같은 에피소드라도 2~3회 청취 추천.
+  </p>
+
+  <div class="card" style="margin-bottom: 22px;">
+    <div class="label">ADD SESSION</div>
+    <div style="display:grid; grid-template-columns: 2fr 2fr 120px; gap:10px; margin-top:10px;">
+      <input id="l-title" type="text" placeholder="title (e.g. TED — The power of vulnerability)" />
+      <input id="l-source" type="text" placeholder="source (e.g. TED Talks / YouTube)" />
+      <input id="l-dur" type="number" placeholder="minutes" min="1" />
+    </div>
+    <textarea id="l-ref" placeholder="배운 점 / 메모 — 새로 들은 표현, 발음, 억양 등" style="margin-top:10px;"></textarea>
+    <div style="display:flex; gap:14px; align-items:center; margin-top: 12px;">
+      <span class="label">RATING</span>
+      <div id="l-rating" style="display:flex; gap:6px;">
+        {[1,2,3,4,5].map(n => `<button class="btn sm" data-n="${n}" type="button">${n}</button>`).join('')}
+      </div>
+      <button class="btn primary" id="l-add" type="button" style="margin-left:auto;">ADD LOG</button>
+    </div>
+  </div>
+
+  <h2>SESSIONS</h2>
+  <div class="card" id="l-list"></div>
+</Layout>
+
+<script>
+  import { getLogs, addLog, deleteLog } from '../lib/store';
+
+  let rating = 0;
+
+  function render() {
+    const list = getLogs('listening');
+    const el = document.getElementById('l-list');
+    if (!el) return;
+    if (list.length === 0) { el.innerHTML = '<div class="muted">아직 로그가 없어요.</div>'; return; }
+    el.innerHTML = '<div class="list">' + list.map(l => `
+      <div class="list-row" data-id="${l.id}" style="grid-template-columns: 110px 1fr auto auto;">
+        <span class="when">${new Date(l.createdAt).toLocaleString()}</span>
+        <div>
+          <div style="font-family: var(--font-hero); font-size: 16px;">${escapeHtml(l.title)}</div>
+          <div class="dim" style="font-size: 12px; margin-top: 2px;">${escapeHtml(l.source ?? '')}</div>
+          ${l.reflection ? `<div class="muted" style="margin-top: 6px; font-size: 13px;">${escapeHtml(l.reflection)}</div>` : ''}
+        </div>
+        <span class="tag">${l.duration ?? '—'} MIN</span>
+        <button class="btn sm danger" data-act="del">DEL</button>
+      </div>
+    `).join('') + '</div>';
+    el.querySelectorAll<HTMLElement>('.list-row').forEach(row => {
+      const id = row.dataset.id!;
+      row.querySelector('[data-act="del"]')?.addEventListener('click', () => {
+        if (confirm('Delete?')) { deleteLog(id); render(); }
+      });
+    });
+  }
+  function escapeHtml(s: string) {
+    return s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] as string));
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('#l-rating button').forEach(b => {
+    b.addEventListener('click', () => {
+      rating = Number(b.dataset.n);
+      document.querySelectorAll('#l-rating button').forEach(x => x.classList.remove('primary'));
+      b.classList.add('primary');
+    });
+  });
+
+  document.getElementById('l-add')?.addEventListener('click', () => {
+    const title = (document.getElementById('l-title') as HTMLInputElement).value.trim();
+    const source = (document.getElementById('l-source') as HTMLInputElement).value.trim();
+    const dur = Number((document.getElementById('l-dur') as HTMLInputElement).value) || undefined;
+    const ref = (document.getElementById('l-ref') as HTMLTextAreaElement).value.trim();
+    if (!title) { alert('title required'); return; }
+    addLog({ area: 'listening', title, source: source || undefined, duration: dur, reflection: ref || undefined });
+    (document.getElementById('l-title') as HTMLInputElement).value = '';
+    (document.getElementById('l-source') as HTMLInputElement).value = '';
+    (document.getElementById('l-dur') as HTMLInputElement).value = '';
+    (document.getElementById('l-ref') as HTMLTextAreaElement).value = '';
+    rating = 0;
+    document.querySelectorAll('#l-rating button').forEach(x => x.classList.remove('primary'));
+    render();
+  });
+
+  render();
+</script>

@@ -1,0 +1,70 @@
+---
+import Layout from '../layouts/Layout.astro';
+const counts = { reading: 0 };
+---
+<Layout title="Reading" active="reading" counts={counts}>
+  <h1 class="hero">Reading<span class="dot">.</span></h1>
+  <p class="muted" style="margin-bottom: 24px;">
+    뉴스 / 아티클 / 책 챕터. 짧아도 OK — 매일 1개가 핵심.
+  </p>
+
+  <div class="card" style="margin-bottom: 22px;">
+    <div class="label">ADD ARTICLE</div>
+    <div style="display:grid; grid-template-columns: 2fr 2fr; gap:10px; margin-top:10px;">
+      <input id="r-title" type="text" placeholder="title (e.g. How LLMs Reason — by Stephen Wolfram)" />
+      <input id="r-source" type="text" placeholder="source / URL (optional)" />
+    </div>
+    <textarea id="r-ref" placeholder="메모 — 새로 본 단어 / 구조 / 인상깊은 문장 / 요약" style="margin-top:10px; min-height: 120px;"></textarea>
+    <div style="margin-top: 12px;">
+      <button class="btn primary" id="r-add" type="button">ADD LOG</button>
+    </div>
+  </div>
+
+  <h2>ENTRIES</h2>
+  <div class="card" id="r-list"></div>
+</Layout>
+
+<script>
+  import { getLogs, addLog, deleteLog } from '../lib/store';
+
+  function render() {
+    const list = getLogs('reading');
+    const el = document.getElementById('r-list');
+    if (!el) return;
+    if (list.length === 0) { el.innerHTML = '<div class="muted">아직 로그가 없어요.</div>'; return; }
+    el.innerHTML = '<div class="list">' + list.map(l => `
+      <div class="list-row" data-id="${l.id}" style="grid-template-columns: 110px 1fr auto;">
+        <span class="when">${new Date(l.createdAt).toLocaleString()}</span>
+        <div>
+          <div style="font-family: var(--font-hero); font-size: 16px;">${escapeHtml(l.title)}</div>
+          ${l.source ? `<div class="dim" style="font-size: 12px; margin-top: 2px;"><a href="${escapeHtml(l.source)}" target="_blank">${escapeHtml(l.source)}</a></div>` : ''}
+          ${l.reflection ? `<div class="muted" style="margin-top: 6px; font-size: 13px; white-space: pre-wrap;">${escapeHtml(l.reflection)}</div>` : ''}
+        </div>
+        <button class="btn sm danger" data-act="del">DEL</button>
+      </div>
+    `).join('') + '</div>';
+    el.querySelectorAll<HTMLElement>('.list-row').forEach(row => {
+      const id = row.dataset.id!;
+      row.querySelector('[data-act="del"]')?.addEventListener('click', () => {
+        if (confirm('Delete?')) { deleteLog(id); render(); }
+      });
+    });
+  }
+  function escapeHtml(s: string) {
+    return s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] as string));
+  }
+
+  document.getElementById('r-add')?.addEventListener('click', () => {
+    const title = (document.getElementById('r-title') as HTMLInputElement).value.trim();
+    const source = (document.getElementById('r-source') as HTMLInputElement).value.trim();
+    const ref = (document.getElementById('r-ref') as HTMLTextAreaElement).value.trim();
+    if (!title) { alert('title required'); return; }
+    addLog({ area: 'reading', title, source: source || undefined, reflection: ref || undefined });
+    (document.getElementById('r-title') as HTMLInputElement).value = '';
+    (document.getElementById('r-source') as HTMLInputElement).value = '';
+    (document.getElementById('r-ref') as HTMLTextAreaElement).value = '';
+    render();
+  });
+
+  render();
+</script>
